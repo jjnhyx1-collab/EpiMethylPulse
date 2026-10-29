@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EpiMethyl Pulse</title>
+<meta name="description" content="최신 후생유전학 논문 요약 및 DNA 메틸화 연구 데이터를 제공하는 생명과학 플랫폼">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #f6f8fb;
+    --surface: #ffffff;
+    --surface-2: #eef2f7;
+    --text: #14202e;
+    --muted: #5b6b7f;
+    --line: #dde4ee;
+    --primary: #0f9d8a;      /* 메틸기(CH3) 청록 */
+    --primary-soft: #d8f3ee;
+    --accent: #7b4fd6;       /* DNA 보라 */
+    --accent-soft: #ece4fb;
+    --warn: #e0663f;
+    --shadow: 0 6px 24px rgba(20, 32, 46, .07);
+    --radius: 16px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d141c;
+      --surface: #141e29;
+      --surface-2: #1b2734;
+      --text: #e7eef6;
+      --muted: #93a3b6;
+      --line: #263445;
+      --primary: #33c9b2;
+      --primary-soft: #123a35;
+      --accent: #a684f0;
+      --accent-soft: #2a2140;
+      --shadow: 0 6px 24px rgba(0, 0, 0, .35);
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: "Noto Sans KR", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+  }
+  a { color: var(--primary); }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+  .mono { font-family: "JetBrains Mono", monospace; }
+
+  /* ---------- 상단 내비게이션 ---------- */
+  header.nav {
+    position: sticky; top: 0; z-index: 50;
+    background: color-mix(in srgb, var(--bg) 85%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  .nav .wrap { display: flex; align-items: center; justify-content: space-between; height: 62px; gap: 16px; }
+  .logo { display: flex; align-items: center; gap: 10px; font-weight: 900; font-size: 1.15rem; text-decoration: none; color: var(--text); }
+  .logo-mark {
+    width: 34px; height: 34px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    display: grid; place-items: center; color: #fff; font-size: .7rem; font-weight: 700;
+  }
+  .nav ul { display: flex; gap: 4px; list-style: none; overflow-x: auto; }
+  .nav ul a {
+    display: block; padding: 7px 12px; border-radius: 999px; white-space: nowrap;
+    text-decoration: none; color: var(--muted); font-size: .9rem; font-weight: 500;
+  }
+  .nav ul a:hover { background: var(--surface-2); color: var(--text); }
+
+  /* ---------- 히어로 ---------- */
+  .hero { padding: 72px 0 56px; position: relative; overflow: hidden; }
+  .hero .wrap { display: grid; grid-template-columns: 1.2fr .8fr; gap: 40px; align-items: center; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 12px; border-radius: 999px; font-size: .8rem; font-weight: 700;
+    background: var(--primary-soft); color: var(--primary);
+  }
+  .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); animation: pulse 1.6s infinite; }
+  @keyframes pulse { 0%{box-shadow:0 0 0 0 color-mix(in srgb, var(--primary) 60%, transparent)} 100%{box-shadow:0 0 0 10px transparent} }
+  .hero h1 { font-size: clamp(2rem, 5vw, 3.2rem); line-height: 1.2; margin: 18px 0 14px; font-weight: 900; letter-spacing: -.02em; }
+  .hero h1 span { background: linear-gradient(90deg, var(--primary), var(--accent)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .hero p.lead { color: var(--muted); font-size: 1.08rem; max-width: 560px; }
+  .hero-cta { display: flex; gap: 10px; margin-top: 26px; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+    padding: 11px 18px; border-radius: 12px; border: 1px solid transparent;
+    font: inherit; font-weight: 700; font-size: .95rem; text-decoration: none;
+    transition: transform .15s, opacity .15s;
+  }
+  .btn:hover { transform: translateY(-1px); }
+  .btn:disabled { opacity: .5; cursor: wait; transform: none; }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-ghost { background: var(--surface); color: var(--text); border-color: var(--line); }
+  .btn-sm { padding: 7px 12px; font-size: .82rem; border-radius: 10px; }
+
+  .stat-panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 22px; }
+  .stat-panel h3 { font-size: .85rem; color: var(--muted); font-weight: 500; margin-bottom: 14px; }
+  .stat-row { display: flex; justify-content: space-between; align-items: baseline; padding: 12px 0; border-top: 1px dashed var(--line); }
+  .stat-row:first-of-type { border-top: 0; }
+  .stat-row b { font-size: 1.6rem; font-family: "JetBrains Mono", monospace; }
+  .stat-row span { color: var(--muted); font-size: .9rem; }
+
+  /* DNA 장식 */
+  .helix { display: flex; gap: 6px; margin-top: 18px; height: 46px; align-items: center; }
+  .helix i { width: 6px; border-radius: 3px; background: var(--primary); animation: helix 2.4s ease-in-out infinite; }
+  .helix i:nth-child(even) { background: var(--accent); }
+  @keyframes helix { 0%,100%{height:10px} 50%{height:46px} }
+
+  /* ---------- 공통 섹션 ---------- */
+  section.block { padding: 64px 0; border-top: 1px solid var(--line); }
+  .sec-head { display: flex; justify-content: space-between; align-items: end; gap: 16px; margin-bottom: 26px; flex-wrap: wrap; }
+  .sec-head .eyebrow { color: var(--primary); font-weight: 700; font-size: .85rem; letter-spacing: .04em; }
+  .sec-head h2 { font-size: 1.75rem; font-weight: 900; letter-spacing: -.01em; }
+  .sec-head p { color: var(--muted); margin-top: 4px; }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+
+  /* 브리핑 */
+  .brief-summary { padding: 20px 22px; margin-bottom: 18px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .brief-summary h4 { font-size: .8rem; color: var(--muted); font-weight: 500; margin-bottom: 8px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { font-size: .78rem; padding: 4px 10px; border-radius: 999px; background: var(--surface-2); color: var(--text); font-weight: 500; }
+  .chip.primary { background: var(--primary-soft); color: var(--primary); }
+  .chip.accent { background: var(--accent-soft); color: var(--accent); }
+
+  .paper-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+  .paper { padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; }
+  .paper .meta { font-size: .78rem; color: var(--muted); display: flex; gap: 8px; flex-wrap: wrap; }
+  .paper h3 { font-size: 1rem; line-height: 1.45; font-weight: 700; }
+  .paper .authors { font-size: .82rem; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+  .paper .abs { font-size: .86rem; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .paper .actions { margin-top: auto; display: flex; gap: 8px; padding-top: 6px; }
+
+  .skeleton { background: linear-gradient(90deg, var(--surface-2), var(--line), var(--surface-2)); background-size: 200% 100%; animation: sk 1.2s infinite; border-radius: 8px; }
+  @keyframes sk { to { background-position: -200% 0; } }
+  .sk-card { height: 210px; border-radius: var(--radius); }
+  .notice { padding: 18px 20px; color: var(--muted); }
+  .notice.error { border-color: var(--warn); }
+
+  /* 논문 DB */
+  .search-bar { display: flex; gap: 10px; margin-bottom: 14px; }
+  .search-bar input {
+    flex: 1; padding: 13px 16px; border-radius: 12px; border: 1px solid var(--line);
+    background: var(--surface); color: var(--text); font: inherit; font-size: 1rem;
+  }
+  .search-bar input:focus { outline: 2px solid var(--primary); border-color: transparent; }
+  .quick { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 20px; }
+  .quick button { border: 1px solid var(--line); background: var(--surface); color: var(--text); padding: 5px 11px; border-radius: 999px; cursor: pointer; font: inherit; font-size: .8rem; }
+  .quick button:hover { border-color: var(--primary); color: var(--primary); }
+  .result-info { font-size: .85rem; color: var(--muted); margin-bottom: 12px; }
+
+  /* AI 요약 */
+  .summary-layout { display: grid; grid-template-columns: .9fr 1.1fr; gap: 18px; }
+  .summary-input { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+  .summary-input textarea {
+    width: 100%; min-height: 240px; resize: vertical; padding: 14px; border-radius: 12px;
+    border: 1px solid var(--line); background: var(--surface-2); color: var(--text); font: inherit; font-size: .88rem;
+  }
+  .summary-output { padding: 22px; min-height: 340px; }
+  .summary-output .placeholder { color: var(--muted); display: grid; place-items: center; height: 100%; text-align: center; min-height: 290px; }
+  .sum-title { font-weight: 700; font-size: 1.05rem; margin-bottom: 4px; }
+  .sum-src { font-size: .8rem; color: var(--muted); margin-bottom: 16px; }
+  .sum-row { display: grid; grid-template-columns: 88px 1fr; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); }
+  .sum-row .label { font-weight: 700; font-size: .82rem; color: var(--primary); }
+  .sum-row p { font-size: .9rem; }
+  mark { background: var(--accent-soft); color: var(--accent); padding: 0 3px; border-radius: 4px; font-weight: 500; }
+  .sum-tags { display: flex; flex-direction: column; gap: 10px; padding-top: 14px; border-top: 1px solid var(--line); }
+  .sum-tags h5 { font-size: .78rem; color: var(--muted); font-weight: 500; margin-bottom: 6px; }
+  .disclaimer { font-size: .75rem; color: var(--muted); margin-top: 14px; }
+
+  /* 시각화 */
+  .viz-layout { display: grid; grid-template-columns: 1.15fr .85fr; gap: 18px; }
+  .viz-card { padding: 22px; }
+  .viz-card h3 { font-size: 1rem; margin-bottom: 2px; }
+  .viz-card .sub { color: var(--muted); font-size: .82rem; margin-bottom: 16px; }
+  .chart-box { position: relative; height: 320px; }
+  .heatmap { display: grid; gap: 3px; font-size: .72rem; }
+  .heatmap .cell { height: 26px; border-radius: 4px; cursor: default; }
+  .heatmap .rowlab { font-family: "JetBrains Mono", monospace; display: flex; align-items: center; font-size: .72rem; }
+  .heatmap .collab { text-align: center; color: var(--muted); font-weight: 700; }
+  .legend-bar { height: 10px; border-radius: 5px; margin: 14px 0 4px; background: linear-gradient(90deg, hsl(215 75% 55%), hsl(0 0% 92%), hsl(5 75% 55%)); }
+  .legend-lab { display: flex; justify-content: space-between; font-size: .72rem; color: var(--muted); }
+  .tip { margin-top: 10px; font-size: .82rem; min-height: 1.4em; color: var(--text); }
+
+  /* 분석 기법 */
+  .method-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
+  .method { padding: 20px; display: flex; flex-direction: column; gap: 8px; }
+  .method .tag { align-self: flex-start; }
+  .method h3 { font-size: 1.02rem; }
+  .method p { font-size: .86rem; color: var(--muted); }
+  .method dl { display: grid; grid-template-columns: 52px 1fr; gap: 4px 8px; font-size: .8rem; margin-top: 4px; }
+  .method dt { color: var(--muted); }
+
+  footer { padding: 36px 0 48px; border-top: 1px solid var(--line); color: var(--muted); font-size: .85rem; }
+  footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+
+  @media (max-width: 860px) {
+    .hero .wrap, .summary-layout, .viz-layout { grid-template-columns: 1fr; }
+    .brief-summary { grid-template-columns: 1fr; }
+    .nav ul { display: none; }
+    .hero { padding-top: 44px; }
+  }
+  @media (max-width: 480px) {
+    .paper-grid { grid-template-columns: 1fr; }
+    .search-bar { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===================== 내비게이션 ===================== -->
+<header class="nav">
+  <div class="wrap">
+    <a href="#top" class="logo"><div class="logo-mark mono">CH₃</div>EpiMethyl Pulse</a>
+    <ul>
+      <li><a href="#briefing">연구 동향</a></li>
+      <li><a href="#database">논문 DB</a></li>
+      <li><a href="#summary">AI 요약</a></li>
+      <li><a href="#visual">데이터 시각화</a></li>
+      <li><a href="#methods">분석 기법</a></li>
+    </ul>
+  </div>
+</header>
+
+<!-- ===================== 히어로 ===================== -->
+<section class="hero" id="top">
+  <div class="wrap">
+    <div>
+      <span class="badge"><span class="pulse-dot"></span> 실시간 연구 동향 업데이트 중</span>
+      <h1>복잡한 <span>DNA 메틸화</span> 연구,<br>한눈에 파악하세요</h1>
+      <p class="lead">EpiMethyl Pulse는 최신 후생유전학 논문을 자동으로 모으고, 핵심 내용을 요약하며, 연구 데이터를 시각화해 연구자·학생·대중 누구나 쉽게 이해할 수 있도록 돕는 생명과학 플랫폼입니다.</p>
+      <div class="hero-cta">
+        <a href="#briefing" class="btn btn-primary">최신 동향 보기 →</a>
+        <a href="#summary" class="btn btn-ghost">논문 요약해보기</a>
+      </div>
+      <div class="helix" aria-hidden="true" id="helix"></div>
+    </div>
+    <div class="stat-panel">
+      <h3>📡 오늘의 펄스 (Europe PMC 기준)</h3>
+      <div class="stat-row"><span>최근 30일 신규 논문</span><b id="stat-month">—</b></div>
+      <div class="stat-row"><span>올해 DNA 메틸화 논문</span><b id="stat-year">—</b></div>
+      <div class="stat-row"><span>누적 DNA 메틸화 논문</span><b id="stat-total">—</b></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 1. 실시간 연구 동향 브리핑 ===================== -->
+<section class="block" id="briefing">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <div class="eyebrow">01 · RESEARCH BRIEFING</div>
+        <h2>실시간 연구 동향 브리핑</h2>
+        <p>최근 30일 동안 발표된 후생유전학·DNA 메틸화 논문을 자동으로 모아 보여줍니다.</p>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="refresh-brief">↻ 새로고침</button>
+    </div>
+    <div class="card brief-summary" id="brief-summary">
+      <div><h4>요즘 많이 나오는 키워드</h4><div class="chips" id="brief-keywords"><span class="skeleton" style="width:180px;height:22px"></span></div></div>
+      <div><h4>주로 등장하는 분석 기법</h4><div class="chips" id="brief-methods"><span class="skeleton" style="width:150px;height:22px"></span></div></div>
+      <div><h4>논문이 많이 실린 저널</h4><div class="chips" id="brief-journals"><span class="skeleton" style="width:160px;height:22px"></span></div></div>
+    </div>
+    <div class="paper-grid" id="brief-list"></div>
+  </div>
+</section>
+
+<!-- ===================== 2. 논문 DB 검색 ===================== -->
+<section class="block" id="database">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <div class="eyebrow">02 · PAPER DATABASE</div>
+        <h2>후생유전학 논문 DB</h2>
+        <p>유전자 이름, 질병, 분석 기법 등으로 검색하세요. (영어 키워드 권장)</p>
+      </div>
+    </div>
+    <form class="search-bar" id="search-form">
+      <input id="search-input" type="search" placeholder="예: MGMT glioma, epigenetic clock, cfDNA cancer..." autocomplete="off">
+      <button class="btn btn-primary" type="submit" id="search-btn">검색</button>
+    </form>
+    <div class="quick" id="quick"></div>
+    <div class="result-info" id="result-info"></div>
+    <div class="paper-grid" id="search-list"></div>
+  </div>
+</section>
+
+<!-- ===================== 3. AI 논문 요약 ===================== -->
+<section class="block" id="summary">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <div class="eyebrow">03 · AI SUMMARY</div>
+        <h2>AI 기반 논문 요약</h2>
+        <p>논문 카드의 「요약」 버튼을 누르거나, 초록(Abstract)을 직접 붙여넣어 핵심을 뽑아보세요.</p>
+      </div>
+    </div>
+    <div class="summary-layout">
+      <div class="card summary-input">
+        <label for="abs-input"><b>초록(Abstract) 붙여넣기</b></label>
+        <textarea id="abs-input" placeholder="영어 논문 초록을 여기에 붙여넣으세요..."></textarea>
+        <div style="display:flex; gap:8px; flex-wrap:wrap">
+          <button class="btn btn-primary" id="sum-btn">요약하기</button>
+          <button class="btn btn-ghost" id="sample-btn">예시 초록 넣기</button>
+        </div>
+      </div>
+      <div class="card summary-output" id="sum-output">
+        <div class="placeholder">🧬<br>요약 결과가 여기에 표시됩니다.<br><small>연구 배경 · 방법 · 핵심 결과 · 결론으로 나눠 정리해 드려요.</small></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 4. 데이터 시각화 ===================== -->
+<section class="block" id="visual">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <div class="eyebrow">04 · DATA VISUALIZATION</div>
+        <h2>메틸화 연구 데이터 시각화</h2>
+        <p>연구 흐름과 메틸화 패턴을 그래프로 확인하세요.</p>
+      </div>
+    </div>
+    <div class="viz-layout">
+      <div class="card viz-card">
+        <h3>연도별 논문 발표 수</h3>
+        <div class="sub">Europe PMC에서 실시간 집계 · 올해는 현재까지의 수치</div>
+        <div class="chart-box"><canvas id="trend-chart"></canvas></div>
+      </div>
+      <div class="card viz-card">
+        <h3>정상 vs 종양 조직 메틸화 히트맵</h3>
+        <div class="sub">β-value (0 = 비메틸화, 1 = 완전 메틸화) · 교육용 예시 데이터</div>
+        <div class="heatmap" id="heatmap"></div>
+        <div class="legend-bar"></div>
+        <div class="legend-lab"><span>0.0 저메틸화</span><span>0.5</span><span>1.0 과메틸화</span></div>
+        <div class="tip" id="heat-tip">칸에 마우스를 올리면 값과 해석이 나와요.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 5. DNA 메틸화 분석 기법 ===================== -->
+<section class="block" id="methods">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <div class="eyebrow">05 · METHODS</div>
+        <h2>DNA 메틸화 분석 기법 가이드</h2>
+        <p>연구 목적에 맞는 분석법을 고를 수 있도록 원리와 장단점을 정리했어요.</p>
+      </div>
+    </div>
+    <div class="method-grid" id="method-grid"></div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div><b>EpiMethyl Pulse</b> · 개인 웹앱 프로젝트</div>
+    <div>논문 데이터 출처: <a href="https://europepmc.org" target="_blank" rel="noopener">Europe PMC</a> · 요약은 참고용이며 원문 확인을 권장합니다.</div>
+  </div>
+</footer>
+
+<script>
+/* =========================================================
+   EpiMethyl Pulse - 메인 스크립트
+   1) Europe PMC 공개 API로 논문 데이터 가져오기
+   2) 브리핑 / 검색 / 요약 / 시각화 / 기법 가이드 렌더링
+   ========================================================= */
+
+const API = "https://www.ebi.ac.uk/europepmc/webservices/rest/search";
+const TOPIC = '("DNA methylation" OR epigenetic OR epigenome OR "CpG methylation")';
+const papers = new Map();   // 화면에 나온 논문 저장 (요약 버튼에서 사용)
+
+/* ---------- 유틸 ---------- */
+const $ = (id) => document.getElementById(id);
+const escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+const stripTags = (s) => new DOMParser().parseFromString(s || "", "text/html").body.textContent.trim();
+const fmt = (n) => Number(n).toLocaleString("ko-KR");
+const isoDate = (d) => d.toISOString().slice(0, 10);
+
+// DNA 장식 막대
+$("helix").innerHTML = Array.from({ length: 22 }, (_, i) => `<i style="animation-delay:${i * 0.11}s"></i>`).join("");
+
+/* ---------- Europe PMC API ---------- */
+async function epmc(params) {
+  const url = API + "?" + new URLSearchParams({ format: "json", ...params });
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  return res.json();
+}
+
+// 최신순 정렬로 요청하고, 실패하면 정렬 없이 한 번 더 시도
+async function fetchPapers(query, pageSize = 12) {
+  let data;
+  try {
+    data = await epmc({ query, resultType: "core", pageSize, sort: "P_PDATE_D desc" });
+  } catch (e) {
+    data = await epmc({ query, resultType: "core", pageSize });
+  }
+  const list = (data.resultList?.result || []).map(normalize).filter(p => p.title);
+  list.forEach(p => papers.set(p.key, p));
+  return { total: data.hitCount || 0, list };
+}
+
+async function countOf(query) {
+  const data = await epmc({ query, resultType: "idlist", pageSize: 1 });
+  return data.hitCount || 0;
+}
+
+function normalize(r) {
+  const journal = r.journalInfo?.journal?.title || r.bookOrReportDetails?.publisher || (r.source === "PPR" ? "Preprint" : r.source);
+  return {
+    key: `${r.source}-${r.id}`,
+    title: stripTags(r.title).replace(/\.$/, ""),
+    authors: r.authorString || "저자 정보 없음",
+    journal,
+    date: r.firstPublicationDate || r.pubYear || "",
+    abstract: stripTags(r.abstractText || ""),
+    keywords: r.keywordList?.keyword || [],
+    link: r.doi ? `https://doi.org/${r.doi}` : `https://europepmc.org/article/${r.source}/${r.id}`,
+    isPreprint: r.source === "PPR"
+  };
+}
+
+/* ---------- 논문 카드 ---------- */
+function paperCard(p) {
+  return `
+  <article class="card paper">
+    <div class="meta">
+      <span class="chip ${p.isPreprint ? "accent" : "primary"}">${p.isPreprint ? "프리프린트" : "저널"}</span>
+      <span>${escapeHtml(p.date)}</span><span>·</span><span>${escapeHtml(p.journal)}</span>
+    </div>
+    <h3>${escapeHtml(p.title)}</h3>
+    <div class="authors">${escapeHtml(p.authors)}</div>
+    <div class="abs">${p.abstract ? escapeHtml(p.abstract) : "<i>초록이 제공되지 않은 논문입니다.</i>"}</div>
+    <div class="actions">
+      <button class="btn btn-primary btn-sm" data-sum="${escapeHtml(p.key)}" ${p.abstract ? "" : "disabled"}>✨ AI 요약</button>
+      <a class="btn btn-ghost btn-sm" href="${escapeHtml(p.link)}" target="_blank" rel="noopener">원문 보기 ↗</a>
+    </div>
+  </article>`;
+}
+
+const skeletons = (n) => Array.from({ length: n }, () => `<div class="skeleton sk-card"></div>`).join("");
+const errorBox = (msg, retryId) => `<div class="card notice error">⚠️ ${escapeHtml(msg)} ${retryId ? `<button class="btn btn-ghost btn-sm" id="${retryId}" style="margin-left:8px">다시 시도</button>` : ""}</div>`;
+
+// 모든 「AI 요약」 버튼 처리 (이벤트 위임)
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-sum]");
+  if (!btn) return;
+  const p = papers.get(btn.dataset.sum);
+  if (p) {
+    renderSummary(p.abstract, { title: p.title, source: `${p.journal} · ${p.date}`, link: p.link });
+    $("summary").scrollIntoView({ behavior: "smooth" });
+  }
+});
+
+/* =========================================================
+   1. 실시간 연구 동향 브리핑
+   ========================================================= */
+async function loadBriefing() {
+  $("brief-list").innerHTML = skeletons(6);
+  const to = new Date(), from = new Date(Date.now() - 30 * 864e5);
+  const q = `${TOPIC} AND FIRST_PDATE:[${isoDate(from)} TO ${isoDate(to)}]`;
+  try {
+    const { total, list } = await fetchPapers(q, 60);
+    $("stat-month").textContent = fmt(total);
+
+    const withAbs = list.filter(p => p.abstract);
+    $("brief-list").innerHTML = withAbs.slice(0, 6).map(paperCard).join("") || errorBox("최근 30일 논문을 찾지 못했어요.");
+
+    // 키워드 / 기법 / 저널 통계
+    const kw = topTerms(list.flatMap(p => p.keywords.length ? p.keywords : []).map(k => k.toLowerCase()), 8, ["dna methylation", "epigenetics", "methylation", "epigenetic"]);
+    $("brief-keywords").innerHTML = kw.length
+      ? kw.map(([k, n]) => `<span class="chip primary">${escapeHtml(k)} <b>${n}</b></span>`).join("")
+      : `<span class="chip">키워드 정보 부족</span>`;
+
+    const methodCount = {};
+    list.forEach(p => detectMethods(p.title + " " + p.abstract).forEach(m => methodCount[m] = (methodCount[m] || 0) + 1));
+    const mc = Object.entries(methodCount).sort((a, b) => b[1] - a[1]).slice(0, 6);
+    $("brief-methods").innerHTML = mc.length ? mc.map(([k, n]) => `<span class="chip accent">${escapeHtml(k)} <b>${n}</b></span>`).join("") : `<span class="chip">감지된 기법 없음</span>`;
+
+    const jc = topTerms(list.filter(p => !p.isPreprint).map(p => p.journal), 5);
+    $("brief-journals").innerHTML = jc.map(([k, n]) => `<span class="chip">${escapeHtml(k)} <b>${n}</b></span>`).join("");
+  } catch (err) {
+    $("brief-list").innerHTML = errorBox("논문 데이터를 불러오지 못했어요. 인터넷 연결을 확인해 주세요.", "retry-brief");
+    $("retry-brief")?.addEventListener("click", loadBriefing);
+    ["brief-keywords", "brief-methods", "brief-journals"].forEach(id => $(id).innerHTML = `<span class="chip">—</span>`);
+  }
+}
+$("refresh-brief").addEventListener("click", loadBriefing);
+
+function topTerms(arr, n, exclude = []) {
+  const c = {};
+  arr.forEach(t => { t = t.trim(); if (t && !exclude.includes(t.toLowerCase())) c[t] = (c[t] || 0) + 1; });
+  return Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, n);
+}
+
+/* =========================================================
+   2. 논문 DB 검색
+   ========================================================= */
+const QUICK = ["epigenetic clock", "cfDNA liquid biopsy", "MGMT glioma", "DNMT3A", "TET2", "imprinting", "single-cell methylation", "nanopore methylation"];
+$("quick").innerHTML = QUICK.map(q => `<button type="button" data-q="${q}">#${q}</button>`).join("");
+$("quick").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-q]");
+  if (b) { $("search-input").value = b.dataset.q; runSearch(); }
+});
+$("search-form").addEventListener("submit", (e) => { e.preventDefault(); runSearch(); });
+
+async function runSearch() {
+  const term = $("search-input").value.trim();
+  if (!term) { $("search-input").focus(); return; }
+  $("search-btn").disabled = true;
+  $("result-info").textContent = "검색 중...";
+  $("search-list").innerHTML = skeletons(3);
+  try {
+    const { total, list } = await fetchPapers(`(${term}) AND ${TOPIC}`, 12);
+    $("result-info").textContent = `"${term}" 검색 결과 총 ${fmt(total)}편 · 최신순 ${list.length}편 표시`;
+    $("search-list").innerHTML = list.length ? list.map(paperCard).join("") : `<div class="card notice">검색 결과가 없어요. 다른 영어 키워드로 시도해 보세요.</div>`;
+  } catch (err) {
+    $("result-info").textContent = "";
+    $("search-list").innerHTML = errorBox("검색 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요.");
+  } finally {
+    $("search-btn").disabled = false;
+  }
+}
+
+/* =========================================================
+   3. AI 논문 요약 (브라우저에서 동작하는 추출 요약 알고리즘)
+   - 문장마다 핵심 단어 빈도로 점수를 매기고
+   - 배경 / 방법 / 결과 / 결론에 해당하는 문장을 골라 정리
+   ========================================================= */
+const STOP = new Set(("a an the and or but of in on at to for from by with without as is are was were be been being this that these those it its we our they their them which who whom whose than then there here into onto over under between among also may might can could would should will not no nor such both each other more most less least very using used use based via within across after before during through about above below further however while whereas thus therefore hence study studies result results show showed shown found suggest suggests data analysis analyses analyzed associated association including include includes one two three new well different significant significantly").split(" "));
+
+const SECTIONS = [
+  { key: "배경",   label: "연구 배경", re: /\b(background|unknown|unclear|remain|role of|important|plays?|aim|objective|purpose|investigat)/i },
+  { key: "방법",   label: "연구 방법", re: /\b(we (performed|used|conducted|analy[sz]ed|profiled|measured|applied|developed|generated|sequenced|collected)|using|cohort|samples?|patients?|participants?|mice|cell lines?)\b/i },
+  { key: "결과",   label: "핵심 결과", re: /\b(found|identified|revealed|showed|observed|detected|increased|decreased|higher|lower|correlat|enriched|hypermethylat|hypomethylat)/i },
+  { key: "결론",   label: "결론·의의", re: /\b(conclu|suggest|indicat|implicat|highlight|potential|may serve|provide[sd]? (new )?insight|therapeutic|biomarker)/i }
+];
+
+const METHOD_DICT = [
+  ["WGBS", /whole[- ]genome bisulfite|\bWGBS\b/i],
+  ["RRBS", /\bRRBS\b|reduced[- ]representation/i],
+  ["메틸화 어레이(EPIC/450K)", /\bEPIC\b|450K|850K|BeadChip|methylation array/i],
+  ["Bisulfite 시퀀싱", /bisulfite/i],
+  ["EM-seq", /EM-seq|enzymatic methyl/i],
+  ["Nanopore", /nanopore/i],
+  ["PacBio", /PacBio|\bSMRT\b|HiFi/i],
+  ["MeDIP", /MeDIP|methylated DNA immunoprecipitation/i],
+  ["Pyrosequencing", /pyrosequenc/i],
+  ["단일세포 분석", /single[- ]cell/i],
+  ["후생유전 시계", /epigenetic (clock|age)|DNAm ?age|methylation age/i],
+  ["cfDNA·액체생검", /cfDNA|cell[- ]free DNA|liquid biops/i],
+  ["머신러닝", /machine learning|deep learning|neural network|random forest/i]
+];
+const detectMethods = (text) => METHOD_DICT.filter(([, re]) => re.test(text)).map(([name]) => name);
+
+const HIGHLIGHT = /\b(DNA methylation|CpG islands?|CpGs?|5mC|5hmC|DNMT\w*|TET\d?|hypermethylat\w*|hypomethylat\w*|demethylat\w*|methylation|promoters?|enhancers?|imprinting|epigenetic\w*|histone\w*|biomarkers?)\b/gi;
+const highlight = (s) => escapeHtml(s).replace(HIGHLIGHT, "<mark>$1</mark>");
+
+const splitSentences = (t) => t.replace(/\s+/g, " ")
+  .replace(/^(abstract|background|introduction)[:.]?\s*/i, "")
+  .split(/(?<=[.!?])\s+(?=[A-Z0-9(])/)
+  .map(s => s.trim()).filter(s => s.length > 25);
+const tokens = (s) => (s.toLowerCase().match(/[a-z0-9][a-z0-9\-]+/g) || []).filter(w => w.length > 2 && !STOP.has(w));
+
+function summarize(text) {
+  const sents = splitSentences(text);
+  const freq = {};
+  sents.forEach(s => new Set(tokens(s)).forEach(w => freq[w] = (freq[w] || 0) + 1));
+  const max = Math.max(1, ...Object.values(freq));
+
+  const scored = sents.map((s, i) => {
+    const ws = tokens(s);
+    let score = ws.reduce((a, w) => a + (freq[w] || 0) / max, 0) / Math.sqrt(ws.length || 1);
+    if (/methylat|CpG|epigen/i.test(s)) score *= 1.15;
+    return { s, i, score };
+  });
+
+  // 섹션별로 가장 점수 높은 문장 하나씩 (중복 없이)
+  const used = new Set(), out = [];
+  SECTIONS.forEach((sec, idx) => {
+    let cands = scored.filter(x => !used.has(x.i) && sec.re.test(x.s));
+    if (sec.key === "배경") cands = cands.concat(scored.filter(x => x.i === 0 && !used.has(0)));
+    if (sec.key === "결론") cands = cands.concat(scored.filter(x => x.i === sents.length - 1 && !used.has(x.i)));
+    // 위치 가중치: 배경은 앞쪽, 결론은 뒤쪽 문장 우대
+    const pos = (x) => sec.key === "배경" ? 1 - x.i / sents.length : sec.key === "결론" ? x.i / sents.length : 0.5;
+    const best = cands.sort((a, b) => (b.score + pos(b) * 0.6) - (a.score + pos(a) * 0.6))[0];
+    if (best) { used.add(best.i); out.push({ label: sec.label, text: best.s, order: idx }); }
+  });
+
+  const keywords = Object.entries(freq).filter(([w]) => !/^\d+$/.test(w)).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([w]) => w);
+  const ratio = sents.length ? Math.round((out.length / sents.length) * 100) : 0;
+  return { parts: out, keywords, methods: detectMethods(text), sentenceCount: sents.length, ratio };
+}
+
+function renderSummary(text, info = {}) {
+  const box = $("sum-output");
+  if (!text || splitSentences(text).length < 2) {
+    box.innerHTML = `<div class="placeholder">문장이 너무 짧아요. 2문장 이상의 영어 초록을 넣어주세요.</div>`;
+    return;
+  }
+  const r = summarize(text);
+  box.innerHTML = `
+    <div class="sum-title">${escapeHtml(info.title || "직접 입력한 초록")}</div>
+    <div class="sum-src">${escapeHtml(info.source || "사용자 입력")} · 원문 ${r.sentenceCount}문장 → 핵심 ${r.parts.length}문장
+      ${info.link ? ` · <a href="${escapeHtml(info.link)}" target="_blank" rel="noopener">원문 ↗</a>` : ""}</div>
+    ${r.parts.map(p => `<div class="sum-row"><div class="label">${p.label}</div><p>${highlight(p.text)}</p></div>`).join("")}
+    <div class="sum-tags">
+      <div><h5>핵심 키워드</h5><div class="chips">${r.keywords.map(k => `<span class="chip primary">${escapeHtml(k)}</span>`).join("")}</div></div>
+      <div><h5>사용된 분석 기법</h5><div class="chips">${r.methods.length ? r.methods.map(m => `<span class="chip accent">${escapeHtml(m)}</span>`).join("") : `<span class="chip">감지되지 않음</span>`}</div></div>
+    </div>
+    <p class="disclaimer">※ 브라우저에서 동작하는 문장 추출 방식 요약입니다. 정확한 내용은 반드시 원문으로 확인하세요.</p>`;
+}
+
+const SAMPLE_ABSTRACT = "DNA methylation is a key epigenetic mechanism that regulates gene expression, yet its role in early tumor development remains unclear. In this study, we aimed to characterize promoter methylation changes in colorectal adenomas and carcinomas. We performed whole-genome bisulfite sequencing (WGBS) on 48 paired tumor and normal tissue samples and validated candidate regions using pyrosequencing. We identified 1,254 differentially methylated regions, most of which were located in CpG islands near tumor suppressor gene promoters. Hypermethylation of SEPT9 and MLH1 was observed in 82% of carcinomas and was associated with reduced gene expression. In contrast, global hypomethylation of repetitive LINE-1 elements increased progressively from adenoma to carcinoma. These findings suggest that promoter hypermethylation occurs early in colorectal tumorigenesis and that SEPT9 methylation may serve as a potential biomarker for non-invasive early detection.";
+$("sample-btn").addEventListener("click", () => { $("abs-input").value = SAMPLE_ABSTRACT; });
+$("sum-btn").addEventListener("click", () => renderSummary($("abs-input").value.trim()));
+
+/* =========================================================
+   4. 데이터 시각화
+   ========================================================= */
+let trendChart;
+async function loadTrend() {
+  const thisYear = new Date().getFullYear();
+  const years = Array.from({ length: 10 }, (_, i) => thisYear - 9 + i);
+  const css = getComputedStyle(document.documentElement);
+  const color = (v) => css.getPropertyValue(v).trim();
+
+  try {
+    const [meth, clock, total] = await Promise.all([
+      Promise.all(years.map(y => countOf(`"DNA methylation" AND PUB_YEAR:${y}`))),
+      Promise.all(years.map(y => countOf(`("epigenetic clock" OR "epigenetic age") AND PUB_YEAR:${y}`))),
+      countOf(`"DNA methylation"`)
+    ]);
+    $("stat-year").textContent = fmt(meth[meth.length - 1]);
+    $("stat-total").textContent = fmt(total);
+
+    trendChart?.destroy();
+    trendChart = new Chart($("trend-chart"), {
+      data: {
+        labels: years.map(y => y === thisYear ? `${y}*` : String(y)),
+        datasets: [
+          { type: "bar", label: "DNA 메틸화 논문", data: meth, backgroundColor: color("--primary"), borderRadius: 6, yAxisID: "y" },
+          { type: "line", label: "후생유전 시계 논문", data: clock, borderColor: color("--accent"), backgroundColor: color("--accent"), tension: .35, pointRadius: 3, yAxisID: "y1" }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: { labels: { color: color("--muted"), font: { family: "Noto Sans KR" } } },
+          tooltip: { callbacks: { label: (c) => ` ${c.dataset.label}: ${fmt(c.parsed.y)}편` } }
+        },
+        scales: {
+          x: { ticks: { color: color("--muted") }, grid: { display: false } },
+          y: { position: "left", ticks: { color: color("--muted") }, grid: { color: color("--line") }, title: { display: true, text: "DNA 메틸화", color: color("--muted") } },
+          y1: { position: "right", ticks: { color: color("--muted") }, grid: { display: false }, title: { display: true, text: "후생유전 시계", color: color("--muted") } }
+        }
+      }
+    });
+  } catch (err) {
+    $("trend-chart").parentElement.innerHTML = errorBox("그래프 데이터를 불러오지 못했어요.");
+    ["stat-year", "stat-total"].forEach(id => $(id).textContent = "—");
+  }
+}
+
+// 히트맵 (교육용 예시 데이터: 종양에서 종양억제유전자 프로모터 과메틸화, 반복서열 저메틸화)
+function seeded(seed) { return () => (seed = (seed * 16807) % 2147483647) / 2147483647; }
+function renderHeatmap() {
+  const rand = seeded(42);
+  const genes = [
+    ["MLH1", .08, .62, "DNA 복구 유전자 · 대장암에서 과메틸화"],
+    ["CDKN2A", .10, .71, "세포주기 억제 유전자(p16)"],
+    ["MGMT", .12, .66, "교모세포종 항암제 반응 예측 마커"],
+    ["SEPT9", .09, .78, "대장암 혈액검사 마커"],
+    ["RASSF1A", .14, .69, "폐암 등 여러 암에서 과메틸화"],
+    ["GSTP1", .07, .74, "전립선암 대표 메틸화 마커"],
+    ["BRCA1", .06, .38, "유방암 관련 유전자"],
+    ["LINE-1", .78, .41, "반복서열 · 종양에서 전반적 저메틸화"],
+    ["H19", .52, .55, "각인 유전자 · 정상에서도 약 50%"]
+  ];
+  const samples = ["N1", "N2", "N3", "T1", "T2", "T3"];
+  const colorOf = (b) => b < .5 ? `hsl(215 75% ${55 + (b / .5) * 37}%)` : `hsl(5 75% ${92 - ((b - .5) / .5) * 37}%)`;
+
+  let html = `<div></div>` + samples.map(s => `<div class="collab">${s}</div>`).join("");
+  genes.forEach(([g, n, t, note]) => {
+    html += `<div class="rowlab">${g}</div>`;
+    samples.forEach((s, j) => {
+      const base = j < 3 ? n : t;
+      const b = Math.min(.98, Math.max(.02, base + (rand() - .5) * .16));
+      html += `<div class="cell" style="background:${colorOf(b)}" data-tip="${g} · ${j < 3 ? "정상" : "종양"} ${s} · β=${b.toFixed(2)} — ${note}"></div>`;
+    });
+  });
+  const hm = $("heatmap");
+  hm.style.gridTemplateColumns = `72px repeat(${samples.length}, 1fr)`;
+  hm.innerHTML = html;
+  hm.addEventListener("mouseover", (e) => { const c = e.target.closest(".cell"); if (c) $("heat-tip").textContent = c.dataset.tip; });
+}
+
+/* =========================================================
+   5. 분석 기법 가이드
+   ========================================================= */
+const METHODS = [
+  { name: "Bisulfite 시퀀싱", tag: "표준(Gold standard)", desc: "중아황산염 처리로 메틸화 안 된 C를 U(→T)로 바꾸고, 메틸화된 C는 그대로 남겨 시퀀싱으로 구분합니다.", res: "단일 염기", pro: "정확도 높음, 기준 방법", con: "DNA 손상·분해" },
+  { name: "WGBS", tag: "전장 유전체", desc: "유전체 전체(약 2,800만 개 CpG)를 Bisulfite 시퀀싱으로 읽는 가장 포괄적인 방법입니다.", res: "단일 염기", pro: "전체 CpG 커버", con: "비용·데이터량 큼" },
+  { name: "RRBS", tag: "비용 효율", desc: "제한효소(MspI)로 CpG가 많은 영역만 골라 Bisulfite 시퀀싱합니다.", res: "단일 염기", pro: "저렴, CpG island 집중", con: "유전체 일부만 분석" },
+  { name: "메틸화 어레이 (EPIC)", tag: "대규모 코호트", desc: "칩에 고정된 탐침으로 약 85~93만 개 CpG 위치의 β-value를 측정합니다.", res: "지정 CpG", pro: "빠르고 저렴, 표준화", con: "새 위치 발견 불가" },
+  { name: "EM-seq", tag: "차세대", desc: "화학 처리 대신 효소(TET2, APOBEC)로 변환해 DNA 손상을 줄인 방법입니다.", res: "단일 염기", pro: "DNA 손상 적음", con: "비교적 새로운 기법" },
+  { name: "Nanopore / PacBio", tag: "롱리드", desc: "DNA를 변환하지 않고 염기를 읽을 때의 전기·동역학 신호로 5mC를 직접 검출합니다.", res: "단일 염기", pro: "변환 불필요, 긴 영역·반수체 구분", con: "오류율·비용" },
+  { name: "MeDIP-seq", tag: "농축 기반", desc: "5mC 항체로 메틸화된 DNA 조각만 끌어내 시퀀싱합니다.", res: "~100–300bp", pro: "저렴, 넓은 영역", con: "해상도 낮음" },
+  { name: "Pyrosequencing", tag: "검증용", desc: "관심 있는 몇 개 CpG의 메틸화 비율을 정량적으로 확인합니다.", res: "단일 염기(소수)", pro: "정량 정확, 임상 검증", con: "적은 위치만 분석" }
+];
+$("method-grid").innerHTML = METHODS.map(m => `
+  <div class="card method">
+    <span class="chip accent tag">${m.tag}</span>
+    <h3>${m.name}</h3>
+    <p>${m.desc}</p>
+    <dl><dt>해상도</dt><dd>${m.res}</dd><dt>장점</dt><dd>${m.pro}</dd><dt>한계</dt><dd>${m.con}</dd></dl>
+  </div>`).join("");
+
+/* ---------- 시작 ---------- */
+renderHeatmap();
+loadBriefing();
+loadTrend();
+</script>
+</body>
+</html>
